@@ -79,6 +79,6 @@
 
 ## 🤝 ติดต่อ (Contact)
 
-[ชื่อมึง] - [อีเมลมึง] - [ลิงก์โซเชียลอื่นๆ]
+[ นัฐ ] - [zencool.xxx@gmail.com] - [061 295 5236]
 
 Project Link: [https://github.com/k-zencool/cmnsfixmac](https://github.com/k-zencool/cmnsfixmac)
