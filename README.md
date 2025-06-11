@@ -1,9 +1,6 @@
 # CMNS Fix Mac - [ Website cmnsfixmac.com ]
 
-![PHP Version](https://img.shields.io/badge/php-%3E%3D7.4-8892BF.svg)
-![Made with Love](https://img.shields.io/badge/Made%20with-Love%20in%20Chiang%20Mai-green.svg)
 
-![CMNS Fix Mac Screenshot](screenshot/main-page.png)
 
 เว็บไซต์สำหรับ [CMNS Fix Mac] ที่ให้บริการ [ซ่อมคอมพิวเตอร์, อุปกรณ์ Apple, และให้คำปรึกษา] โปรเจคนี้สร้างขึ้นเพื่อเป็นหน้าบ้านสำหรับธุรกิจ แสดงผลงาน, บริการ, และบทความที่เป็นประโยชน์ต่อลูกค้า
 
