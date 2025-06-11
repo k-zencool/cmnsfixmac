@@ -1,5 +1,5 @@
 # CMNS Fix Mac - [ Website cmnsfixmac.com ]
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 ![PHP Version](https://img.shields.io/badge/php-%3E%3D7.4-8892BF.svg)
 ![Made with Love](https://img.shields.io/badge/Made%20with-Love%20in%20Chiang%20Mai-green.svg)
 
