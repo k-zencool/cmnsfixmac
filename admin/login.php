@@ -16,11 +16,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['username'])) {
   $stmt = $pdo->prepare("SELECT * FROM admin_users WHERE username = ?");
   $stmt->execute([$username]);
   $admin = $stmt->fetch();
-
   if ($admin && password_verify($password, $admin['password'])) {
-    session_regenerate_id(true); // ป้องกัน session hijacking
+    session_regenerate_id(true);
     $_SESSION['admin_logged_in'] = true;
     $_SESSION['admin_username'] = $admin['username'];
+    $_SESSION['admin_id'] = $admin['id']; // <--- บรรทัดนี้ที่เราเพิ่มเข้าไป!
     $_SESSION['LAST_ACTIVE'] = time();
     header("Location: dashboard.php");
     exit();
@@ -32,6 +32,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['username'])) {
 
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -40,6 +41,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['username'])) {
   <link rel="shortcut icon" href="https://cmnsfixmac.com/assets/img/favicon1.png" />
 
 </head>
+
 <body>
   <div class="login-container">
     <div class="login-box">
@@ -57,4 +59,5 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['username'])) {
     </div>
   </div>
 </body>
+
 </html>

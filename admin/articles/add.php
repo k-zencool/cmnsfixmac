@@ -1,7 +1,19 @@
 <?php
 session_start();
+
+// ==================================================================
+//  โค้ดนักสืบ: เราจะพิมพ์ทุกอย่างใน Session ออกมาดูตรงนี้
+// ==================================================================
+echo 'Debug Session Data:';
+echo '<pre>';
+var_dump($_SESSION);
+echo '</pre>';
+echo '<hr>';
+// ==================================================================
+
+
 require_once __DIR__ . '/../../includes/db.php';
-require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/auth.php'; 
 
 function e($string) { 
   return htmlspecialchars((string) $string, ENT_QUOTES, 'UTF-8');
@@ -9,6 +21,15 @@ function e($string) {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  
+  // Get the current admin's ID from the session
+  $admin_id = $_SESSION['admin_id'] ?? null; 
+
+  // (Optional but recommended) Check if admin is logged in
+  if (!$admin_id) {
+    die('Error: You must be logged in to perform this action.'); 
+  }
+
   $title = $_POST['title'] ?? '';
   $slug = $_POST['slug'] ?? '';
   $content = $_POST['content'] ?? '';
@@ -29,13 +50,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     move_uploaded_file($_FILES['main_image']['tmp_name'], '../../uploads/' . $mainImage);
   }
 
+  // อัปเกรดคำสั่ง SQL INSERT ให้มี admin_id
   $stmt = $pdo->prepare("INSERT INTO articles 
-                          (title, slug, category, content, excerpt, youtube_url, image, status, created_at, 
+                          (admin_id, title, slug, category, content, excerpt, youtube_url, image, status, created_at, 
                            title_en, slug_en, content_en, excerpt_en)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)");
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)");
   
+  // อัปเกรดข้อมูลที่จะ Execute เพิ่ม $admin_id เข้าไปตัวแรก
   if ($stmt->execute([
-    $title, $slug, $category, $content, $excerpt, $youtube_url, $mainImage, $status,
+    $admin_id, $title, $slug, $category, $content, $excerpt, $youtube_url, $mainImage, $status,
     $title_en, $slug_en, $content_en, $excerpt_en
   ])) {
     $article_id = $pdo->lastInsertId();
@@ -174,7 +197,6 @@ function addMoreImages() {
   const captionIdTh = `caption-th-${imageIndex}`;
   const captionIdEn = `caption-en-${imageIndex}`;
 
-  // CORRECTED: Removed unnecessary backslashes (\) before ${...}
   div.innerHTML = `
     <div style="text-align: right;">
         <button type="button" class="remove-image-btn" onclick="removeImageGroup(this)" style="background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 25px; height: 25px; cursor: pointer;">✕</button>
@@ -217,7 +239,6 @@ function previewMainImage(input) {
   if (input.files && input.files[0]) {
     const reader = new FileReader();
     reader.onload = function (e) {
-      // CORRECTED: Removed unnecessary backslash (\) before ${...}
       previewContainer.innerHTML = `<img src="${e.target.result}" style="max-width:200px; border-radius:8px; margin-top:10px;">`;
     };
     reader.readAsDataURL(input.files[0]);

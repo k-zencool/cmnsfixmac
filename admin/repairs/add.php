@@ -1,15 +1,24 @@
 <?php
 session_start();
-require_once __DIR__ . '/../../includes/db.php'; // Assuming db.php is correctly located
-require_once __DIR__ . '/../../includes/auth.php'; // Assuming auth.php handles admin authentication
+require_once __DIR__ . '/../../includes/db.php'; 
+require_once __DIR__ . '/../../includes/auth.php'; 
 
-// Check if user is authenticated (example, adjust to your auth logic)
 // if (!isAdmin()) {
-//    header("Location: /admin/login.php"); // Or your admin login page
+//    header("Location: /admin/login.php");
 //    exit;
 // }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  
+  // ==================================================================
+  //  จุดที่ 1: ดึง ID ของแอดมินจาก Session
+  // ==================================================================
+  $admin_id = $_SESSION['admin_id'] ?? null;
+
+  if (!$admin_id) {
+    die('Error: You must be logged in to perform this action.'); 
+  }
+
   // Thai fields
   $title = $_POST['title'] ?? '';
   $model = $_POST['model'] ?? '';
@@ -22,12 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $issue_en = $_POST['issue_en'] ?? '';
   $fix_detail_en = $_POST['fix_detail_en'] ?? '';
 
-  $image = ''; // Default empty image
+  $image = ''; 
   if (!empty($_FILES['image']['name'])) {
-    $filename = time() . '_' . preg_replace("/[^a-zA-Z0-9.\-\_]/", "_", basename($_FILES['image']['name'])); // Sanitize filename
-    $path = '../../uploads/' . $filename; // Path relative to this admin script
+    $filename = time() . '_' . preg_replace("/[^a-zA-Z0-9.\-\_]/", "_", basename($_FILES['image']['name']));
+    $path = '../../uploads/' . $filename;
     
-    // Create uploads directory if it doesn't exist
     $uploadDir = dirname($path);
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0775, true);
@@ -35,31 +43,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (move_uploaded_file($_FILES['image']['tmp_name'], $path)) {
       $image = $filename;
-    } else {
-      // Optional: Add error handling for upload failure
-      // For now, $image remains empty or previous value if editing
-      // echo "Error uploading image.";
     }
   }
 
-  // UPDATED: SQL INSERT statement to include English fields
-  $stmt = $pdo->prepare("INSERT INTO repairs (title, model, issue, fix_detail, image, category, created_at, title_en, issue_en, fix_detail_en) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
+  // ==================================================================
+  //  จุดที่ 2: เพิ่ม admin_id เข้าไปในคำสั่ง INSERT
+  // ==================================================================
+  $stmt = $pdo->prepare("INSERT INTO repairs (admin_id, title, model, issue, fix_detail, image, category, created_at, title_en, issue_en, fix_detail_en) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)");
   
-  // UPDATED: Execute array to include English variables
-  if ($stmt->execute([$title, $model, $issue, $fix_detail, $image, $category, $title_en, $issue_en, $fix_detail_en])) {
-    $_SESSION['success_message'] = "ผลงานซ่อมถูกเพิ่มเรียบร้อยแล้ว"; // Optional: Success message
-    header("Location: index.php"); // Redirect to the list of repairs in admin
+  // ==================================================================
+  //  จุดที่ 3: เพิ่ม $admin_id เข้าไปใน execute() เป็นตัวแรก
+  // ==================================================================
+  if ($stmt->execute([$admin_id, $title, $model, $issue, $fix_detail, $image, $category, $title_en, $issue_en, $fix_detail_en])) {
+    $_SESSION['success_message'] = "ผลงานซ่อมถูกเพิ่มเรียบร้อยแล้ว";
+    header("Location: index.php");
     exit;
   } else {
-    // Optional: Add error handling for DB insert failure
-    // $_SESSION['error_message'] = "เกิดข้อผิดพลาดในการเพิ่มผลงานซ่อม";
-    // echo "Error: " . $stmt->errorInfo()[2]; // For debugging
+    // echo "Error: " . $stmt->errorInfo()[2];
   }
 }
 ?>
 
-<?php include '../../templates/header_admin.php'; // Admin header ?>
-<?php include '../../templates/sidebar_admin.php'; // Admin sidebar ?>
+<?php include '../../templates/header_admin.php'; ?>
+<?php include '../../templates/sidebar_admin.php'; ?>
 
 <main class="main" id="main-content">
   <div class="topbar">
@@ -116,20 +122,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </form>
 </main>
 
-<?php include '../../templates/footer_admin.php'; // Admin footer ?>
+<?php include '../../templates/footer_admin.php'; ?>
 
 <script>
 function previewImage(event) {
   const input = event.target;
   const previewContainer = document.getElementById('imagePreview');
-  previewContainer.innerHTML = ''; // Clear previous preview
+  previewContainer.innerHTML = ''; 
 
   if (input.files && input.files[0]) {
     const reader = new FileReader();
     reader.onload = function(e) {
       const img = document.createElement('img');
       img.src = e.target.result;
-      img.style.maxWidth = '200px'; // Control preview size
+      img.style.maxWidth = '200px'; 
       img.style.maxHeight = '200px';
       img.style.borderRadius = '8px';
       img.style.marginTop = '10px';
@@ -138,14 +144,4 @@ function previewImage(event) {
     reader.readAsDataURL(input.files[0]);
   }
 }
-
-// Basic sidebar toggle function (if not already in your admin scripts)
-// function toggleSidebar() {
-//   const sidebar = document.getElementById('admin-sidebar'); // Adjust ID if needed
-//   const mainContent = document.getElementById('main-content');
-//   if (sidebar && mainContent) {
-//     sidebar.classList.toggle('collapsed');
-//     mainContent.classList.toggle('expanded');
-//   }
-// }
 </script>

@@ -3,10 +3,19 @@ session_start();
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 
-// if (!isAdmin()) { exit('Access Denied'); } // Example auth check
+// if (!isAdmin()) { exit('Access Denied'); }
+
+// ==================================================================
+//  จุดที่ 1: ดึง ID ของแอดมินจาก Session
+// ==================================================================
+$admin_id = $_SESSION['admin_id'] ?? null;
+
+if (!$admin_id) {
+    die('Error: You must be logged in to perform this action.'); 
+}
 
 $productdetails = $_POST['productdetails'] ?? '';
-$productdetails_en = $_POST['productdetails_en'] ?? ''; // Added for English textarea
+$productdetails_en = $_POST['productdetails_en'] ?? '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -29,15 +38,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     move_uploaded_file($_FILES['main_image']['tmp_name'], __DIR__ . '/../../uploads/' . $filename);
     $main_image = $filename;
   }
+  
+  // ==================================================================
+  //  จุดที่ 2: เพิ่ม admin_id เข้าไปในคำสั่ง INSERT
+  // ==================================================================
+  $stmt = $pdo->prepare("INSERT INTO products (admin_id, name, price, category, productdetails, main_image, status, created_at, name_en, productdetails_en) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)");
 
-  // UPDATED: SQL INSERT statement to include English columns
-  $stmt = $pdo->prepare("INSERT INTO products (name, price, category, productdetails, main_image, status, created_at, name_en, productdetails_en) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?)");
-
-  // UPDATED: Execute array to include English variables
-  if ($stmt->execute([$name, $price, $category, $details, $main_image, $status, $name_en, $details_en])) {
+  // ==================================================================
+  //  จุดที่ 3: เพิ่ม $admin_id เข้าไปใน execute() เป็นตัวแรก
+  // ==================================================================
+  if ($stmt->execute([$admin_id, $name, $price, $category, $details, $main_image, $status, $name_en, $details_en])) {
     $product_id = $pdo->lastInsertId();
 
-    // Handle additional images upload
     if (!empty($_FILES['additional_images']['name'][0])) {
       foreach ($_FILES['additional_images']['tmp_name'] as $index => $tmpName) {
         if (isset($_FILES['additional_images']['error'][$index]) && $_FILES['additional_images']['error'][$index] === UPLOAD_ERR_OK) {
@@ -45,20 +57,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           move_uploaded_file($tmpName, __DIR__ . '/../../uploads/' . $image_name);
 
           $imgStmt = $pdo->prepare("INSERT INTO product_images (product_id, image) VALUES (?, ?)");
-          $imgStmt->execute([$product_id, 'uploads/' . $image_name]); // Storing with 'uploads/' prefix
+          $imgStmt->execute([$product_id, 'uploads/' . $image_name]); 
         }
       }
     }
 
-    // $_SESSION['success_message'] = "เพิ่มสินค้าเรียบร้อยแล้ว";
-    header('Location: index.php'); // Redirect to products list in admin
+    header('Location: index.php');
     exit;
-  } else {
-    // $_SESSION['error_message'] = "เกิดข้อผิดพลาดในการเพิ่มสินค้า";
-    // echo "Error: " . implode(" | ", $stmt->errorInfo()); // For debugging
   }
 }
 ?>
+
 
 <?php include '../../templates/header_admin.php'; ?>
 <?php include '../../templates/sidebar_admin.php'; ?>
@@ -128,12 +137,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script src="https://cdn.jsdelivr.net/npm/tinymce@5/tinymce.min.js"></script>
 <script>
-  // UPDATED: TinyMCE selector to target both Thai and English textareas
   tinymce.init({
-    selector: 'textarea.rich-text', // Target by class now
+    selector: 'textarea.rich-text',
     menubar: false,
     height: 300,
-    plugins: 'lists link image paste code', // Added image, paste, code plugins
+    plugins: 'lists link image paste code',
     toolbar: 'undo redo | formatselect | bold italic underline | bullist numlist | link image | removeformat | code',
     branding: false
   });
@@ -177,6 +185,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       });
     }
   }
-  // Note: The original script for removing individual additional images was complex.
-  // For now, this script just previews all selected additional images. Re-selecting files will reset the preview.
 </script>
