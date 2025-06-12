@@ -3,15 +3,27 @@ session_start();
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 
-$stmt = $pdo->query("SELECT * FROM articles ORDER BY created_at DESC");
-$articles = $stmt->fetchAll();
+// ==================================================================
+//  จุดที่ 1: แก้ไข SQL Query ให้ JOIN ตาราง admin_users
+// ==================================================================
+$stmt = $pdo->query("
+    SELECT
+        articles.*,
+        admin_users.username AS admin_name
+    FROM
+        articles
+    LEFT JOIN
+        admin_users ON articles.admin_id = admin_users.id
+    ORDER BY
+        articles.created_at DESC
+");
+$articles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 include '../../templates/header_admin.php'; 
 include '../../templates/sidebar_admin.php'; 
 ?>
 
 <main class="main" id="main-content">
-  <!-- Topbar -->
   <div class="topbar">
     <span>บทความทั้งหมด</span>
     <a href="../../" class="view-site" target="_blank">ดูเว็บไซต์</a>
@@ -30,6 +42,7 @@ include '../../templates/sidebar_admin.php';
           <th>รูป</th>
           <th>ชื่อบทความ</th>
           <th>หมวดหมู่</th>
+          <th>ผู้สร้าง</th>
           <th>วันที่</th>
           <th>สถานะ</th>
           <th>จัดการ</th>
@@ -48,6 +61,7 @@ include '../../templates/sidebar_admin.php';
           </td>
           <td><?= htmlspecialchars($row['title']) ?></td>
           <td><?= htmlspecialchars($row['category']) ?></td>
+          <td><?= htmlspecialchars($row['admin_name'] ?? 'N/A') ?></td>
           <td><?= date('d/m/Y', strtotime($row['created_at'])) ?></td>
           <td>
             <?php if ($row['status']): ?>

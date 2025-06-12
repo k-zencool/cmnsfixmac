@@ -3,55 +3,81 @@ session_start();
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 
-// if (!isAdmin()) { exit('Access Denied'); }
-
 function e($string) {
     return htmlspecialchars((string) $string, ENT_QUOTES, 'UTF-8');
 }
 
 $username = $_SESSION['admin_username'] ?? 'Admin';
 
-// --- Dashboard Stats (All in one place) ---
+try {
+    // --- Dashboard Stats (All in one place) ---
 
-// 1. Summary Cards Data
-$totalRepairs = (int) $pdo->query("SELECT COUNT(*) FROM repairs")->fetchColumn();
-$totalProducts = (int) $pdo->query("SELECT COUNT(*) FROM products")->fetchColumn();
-$totalArticles = (int) $pdo->query("SELECT COUNT(*) FROM articles")->fetchColumn();
-$totalAdmins = (int) $pdo->query("SELECT COUNT(*) FROM admin_users")->fetchColumn();
+    // 1. Summary Cards Data (From your code)
+    $totalRepairs = (int) $pdo->query("SELECT COUNT(*) FROM repairs")->fetchColumn();
+    $totalProducts = (int) $pdo->query("SELECT COUNT(*) FROM products")->fetchColumn();
+    $totalArticles = (int) $pdo->query("SELECT COUNT(*) FROM articles")->fetchColumn();
 
-// 2. Chart Data (Optimized Query - 1 query instead of 12!)
-$currentYear = date('Y');
-$repairsByMonth = array_fill(1, 12, 0); // Initialize all 12 months with 0
+    // 2. Chart Data (From your code)
+    $currentYear = date('Y');
+    $repairsByMonth = array_fill(1, 12, 0); 
+    $stmtChart = $pdo->prepare("SELECT MONTH(created_at) AS month, COUNT(*) AS count FROM repairs WHERE YEAR(created_at) = ? GROUP BY MONTH(created_at)");
+    $stmtChart->execute([$currentYear]);
+    $monthlyResults = $stmtChart->fetchAll(PDO::FETCH_KEY_PAIR);
+    foreach ($monthlyResults as $month => $count) {
+        $repairsByMonth[(int)$month] = (int)$count;
+    }
+    $chartMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    $chartRepairsData = array_values($repairsByMonth);
+    $currentMonthIndex = (int)date('n');
+    $monthlyRepairs = $repairsByMonth[$currentMonthIndex];
 
-// Fetch data for the whole year and group by month
-$stmtChart = $pdo->prepare("SELECT MONTH(created_at) AS month, COUNT(*) AS count 
-                            FROM repairs 
-                            WHERE YEAR(created_at) = ? 
-                            GROUP BY MONTH(created_at)");
-$stmtChart->execute([$currentYear]);
-$monthlyResults = $stmtChart->fetchAll(PDO::FETCH_KEY_PAIR); // Fetches as [month => count]
+    // 3. Latest Items Data (From your code)
+    $latestRepairs = $pdo->query("SELECT id, title, model, created_at FROM repairs ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+    $latestProducts = $pdo->query("SELECT id, name, price, created_at FROM products ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
+    $latestArticles = $pdo->query("SELECT id, title, slug, created_at FROM articles ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
 
-// Fill the array with data from the database
-foreach ($monthlyResults as $month => $count) {
-    $repairsByMonth[(int)$month] = (int)$count;
+    // ==================================================================
+    //  ส่วนที่กูเพิ่มให้: สถิติแยกตามแอดมิน
+    // ==================================================================
+    $article_counts_stmt = $pdo->query("
+        SELECT admin_users.username, COUNT(articles.id) AS item_count FROM articles
+        LEFT JOIN admin_users ON articles.admin_id = admin_users.id WHERE articles.admin_id IS NOT NULL
+        GROUP BY articles.admin_id ORDER BY item_count DESC
+    ");
+    $article_stats = $article_counts_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $repair_counts_stmt = $pdo->query("
+        SELECT admin_users.username, COUNT(repairs.id) AS item_count FROM repairs
+        LEFT JOIN admin_users ON repairs.admin_id = admin_users.id WHERE repairs.admin_id IS NOT NULL
+        GROUP BY repairs.admin_id ORDER BY item_count DESC
+    ");
+    $repair_stats = $repair_counts_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $product_counts_stmt = $pdo->query("
+        SELECT admin_users.username, COUNT(products.id) AS item_count FROM products
+        LEFT JOIN admin_users ON products.admin_id = admin_users.id WHERE products.admin_id IS NOT NULL
+        GROUP BY products.admin_id ORDER BY item_count DESC
+    ");
+    $product_stats = $product_counts_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    $error_message = "Database error: " . $e->getMessage();
 }
-
-$chartMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-$chartRepairsData = array_values($repairsByMonth);
-
-// For the "This Month" card
-$currentMonthIndex = (int)date('n');
-$monthlyRepairs = $repairsByMonth[$currentMonthIndex];
-
-// 3. Latest Items Data
-$latestRepairs = $pdo->query("SELECT id, title, model, created_at FROM repairs ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
-$latestProducts = $pdo->query("SELECT id, name, price, created_at FROM products ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
-$latestArticles = $pdo->query("SELECT id, title, slug, created_at FROM articles ORDER BY created_at DESC LIMIT 5")->fetchAll(PDO::FETCH_ASSOC);
 
 // Include header AFTER all PHP logic is done
 include '../templates/header_admin.php';
 include '../templates/sidebar_admin.php';
 ?>
+
+<style>
+    .stats-container { display: flex; gap: 20px; flex-wrap: wrap; }
+    .stat-card { background-color: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; flex: 1; min-width: 250px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); }
+    .stat-card h3 { margin-top: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; font-size: 1.1rem; }
+    .stat-card ul { list-style-type: none; padding: 0; margin: 0; }
+    .stat-card li { padding: 8px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; }
+    .stat-card li:last-child { border-bottom: none; }
+    .stat-card li span:first-child { font-weight: 600; }
+</style>
 
 <main class="main" id="main-content">
   <div class="topbar" id="topbar">
@@ -88,65 +114,58 @@ include '../templates/sidebar_admin.php';
       <canvas id="repairsChart"></canvas>
     </div>
   </section>
-
+  
+  <hr style="margin: 30px 0;">
+  <section class="dashboard-section">
+    <h2>สรุปผลงานตามผู้ดูแล</h2>
+    <?php if (isset($error_message)): ?>
+        <p style="color: red;"><?= htmlspecialchars($error_message) ?></p>
+    <?php else: ?>
+        <div class="stats-container">
+            <div class="stat-card">
+                <h3>ยอดรวมบทความ</h3>
+                <?php if (empty($article_stats)): ?><p>ยังไม่มีข้อมูล</p><?php else: ?>
+                    <ul><?php foreach ($article_stats as $stat): ?><li><span><?= e($stat['username']) ?></span><span><?= $stat['item_count'] ?> รายการ</span></li><?php endforeach; ?></ul>
+                <?php endif; ?>
+            </div>
+            <div class="stat-card">
+                <h3>ยอดรวมผลงานซ่อม</h3>
+                <?php if (empty($repair_stats)): ?><p>ยังไม่มีข้อมูล</p><?php else: ?>
+                    <ul><?php foreach ($repair_stats as $stat): ?><li><span><?= e($stat['username']) ?></span><span><?= $stat['item_count'] ?> รายการ</span></li><?php endforeach; ?></ul>
+                <?php endif; ?>
+            </div>
+            <div class="stat-card">
+                <h3>ยอดรวมสินค้า</h3>
+                <?php if (empty($product_stats)): ?><p>ยังไม่มีข้อมูล</p><?php else: ?>
+                    <ul><?php foreach ($product_stats as $stat): ?><li><span><?= e($stat['username']) ?></span><span><?= $stat['item_count'] ?> รายการ</span></li><?php endforeach; ?></ul>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+  </section>
+  
+  <hr style="margin: 30px 0;">
   <section class="dashboard-section">
     <h2>รายการล่าสุด</h2>
     <div class="latest-items-grid">
-      
       <div class="latest-item-list">
         <h3>ผลงานซ่อมล่าสุด</h3>
-        <ul>
-          <?php foreach($latestRepairs as $item): ?>
-            <li>
-              <a href="repairs/edit.php?id=<?= e($item['id']) ?>">
-                <span>
-                  <strong><?= e($item['title'] ?: 'N/A') ?></strong> (<?= e($item['model'] ?: 'N/A') ?>)
-                </span>
-                <small><?= date('d M Y', strtotime($item['created_at'])) ?></small>
-              </a>
-            </li>
-          <?php endforeach; ?>
-        </ul>
+        <ul><?php foreach($latestRepairs as $item): ?><li><a href="repairs/edit.php?id=<?= e($item['id']) ?>"><span><strong><?= e($item['title'] ?: 'N/A') ?></strong> (<?= e($item['model'] ?: 'N/A') ?>)</span><small><?= date('d M Y', strtotime($item['created_at'])) ?></small></a></li><?php endforeach; ?></ul>
       </div>
-
       <div class="latest-item-list">
         <h3>สินค้าล่าสุด</h3>
-        <ul>
-          <?php foreach($latestProducts as $item): ?>
-            <li>
-              <a href="products/edit.php?id=<?= e($item['id']) ?>">
-                <strong><?= e($item['name'] ?: 'N/A') ?></strong>
-                <small><?= date('d M Y', strtotime($item['created_at'])) ?></small>
-              </a>
-            </li>
-          <?php endforeach; ?>
-        </ul>
+        <ul><?php foreach($latestProducts as $item): ?><li><a href="products/edit.php?id=<?= e($item['id']) ?>"><strong><?= e($item['name'] ?: 'N/A') ?></strong><small><?= date('d M Y', strtotime($item['created_at'])) ?></small></a></li><?php endforeach; ?></ul>
       </div>
-
       <div class="latest-item-list">
         <h3>บทความล่าสุด</h3>
-        <ul>
-          <?php foreach($latestArticles as $item): ?>
-            <li>
-              <a href="articles/edit.php?id=<?= e($item['id']) ?>"> <strong><?= e($item['title'] ?: 'N/A') ?></strong>
-                <small><?= date('d M Y', strtotime($item['created_at'])) ?></small>
-              </a>
-            </li>
-          <?php endforeach; ?>
-        </ul>
+        <ul><?php foreach($latestArticles as $item): ?><li><a href="articles/edit.php?id=<?= e($item['id']) ?>"> <strong><?= e($item['title'] ?: 'N/A') ?></strong><small><?= date('d M Y', strtotime($item['created_at'])) ?></small></a></li><?php endforeach; ?></ul>
       </div>
-
     </div>
   </section>
 </main>
 
-<?php 
-// Include footer only ONCE
-include '../templates/footer_admin.php'; 
-?>
-
+<?php include '../templates/footer_admin.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   const ctx = document.getElementById('repairsChart');
@@ -167,28 +186,12 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              precision: 0 // Ensure y-axis shows whole numbers
-            }
-          }
-        },
-        plugins: {
-            legend: {
-                display: false // Hide legend if there is only one dataset
-            }
-        }
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 }}},
+        plugins: { legend: { display: false }}
       }
     });
   }
 });
-
-// Assuming your dashboard-script.js is for sidebar toggling and other global admin functions
-// And it's correctly included in your footer_admin.php with correct paths
-// The chart logic is now self-contained in dashboard.php for simplicity and to ensure correct load order.
 </script>
-
 </body>
 </html>

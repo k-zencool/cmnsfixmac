@@ -3,7 +3,20 @@ session_start();
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/auth.php';
 
-$stmt = $pdo->query("SELECT * FROM products ORDER BY created_at DESC");
+// ==================================================================
+//  จุดที่ 1: แก้ไข SQL Query ให้ JOIN ตาราง admin_users
+// ==================================================================
+$stmt = $pdo->query("
+    SELECT
+        products.*,
+        admin_users.username AS admin_name
+    FROM
+        products
+    LEFT JOIN
+        admin_users ON products.admin_id = admin_users.id
+    ORDER BY
+        products.created_at DESC
+");
 $products = $stmt->fetchAll();
 
 include '../../templates/header_admin.php';
@@ -11,7 +24,6 @@ include '../../templates/sidebar_admin.php';
 ?>
 
 <main class="main" id="main-content">
-  <!-- Topbar -->
   <div class="topbar">
     <span>จัดการสินค้า/บริการ</span>
     <a href="../dashboard.php" class="view-site">กลับแดชบอร์ด</a>
@@ -31,9 +43,10 @@ include '../../templates/sidebar_admin.php';
     <th>รูป</th>
     <th>ชื่อสินค้า</th>
     <th>หมวดหมู่</th>
+    <th>ผู้สร้าง</th>
     <th>ราคา</th>
     <th>วันที่เพิ่ม</th>
-    <th>สถานะ</th> <!-- ✅ เพิ่ม -->
+    <th>สถานะ</th>
     <th>จัดการ</th>
   </tr>
 </thead>
@@ -50,6 +63,7 @@ include '../../templates/sidebar_admin.php';
     </td>
     <td><?= htmlspecialchars($product['name']) ?></td>
     <td><?= htmlspecialchars($product['category']) ?></td>
+    <td><?= htmlspecialchars($product['admin_name'] ?? 'N/A') ?></td>
     <td><?= number_format($product['price'], 0) ?> บาท</td>
     <td><?= date('d/m/Y', strtotime($product['created_at'])) ?></td>
     <td>
